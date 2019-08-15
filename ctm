@@ -1,0 +1,60 @@
+#!/bin/bash
+# companion to mpc
+
+export MPC_FORMAT='%file%\n%title%\n%artist%\n%album%'
+
+python_cmd="""
+import sys; from mutagen.id3 import ID3
+print(ID3(sys.argv[1]).getall('USLT')[0])
+"""
+
+print_lyrics() {
+	reset
+	python <(echo "$python_cmd") "$file" 2> /dev/null
+}
+
+parse_mpc() {
+	mapfile -t info
+	file=~/Music/${info[0]}
+	title=${info[1]}; artist=${info[2]}; album=${info[3]}
+}
+
+link_img() {
+	cv="$(dirname "$file")/cover"
+	if [[ -e "$cv.jpg" ]]; then ln -sf "$cv.jpg" "$img_file"; return; fi
+	if [[ -e "$cv.png" ]]; then ln -sf "$cv.png" "$img_file"; return; fi
+	echo 'R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI=' \
+		| base64 -d > "$img_file"
+}
+
+while getopts "onqi" opt; do
+	case $opt in
+		o) print_once=1;;
+		n) notify=1;;
+		q) quiet=1;;
+		i) image=1;;
+		*) exit;;
+	esac
+done
+
+if [[ $print_once ]]; then
+	parse_mpc < <(mpc current)
+	print_lyrics
+	exit
+fi
+
+if [[ $image ]]; then
+	img_file=$(mktemp)
+	trap 'kill %1; rm $img_file' EXIT
+	link_img ""
+	{ imv "$img_file"; kill $$; } &
+fi
+
+while output=$(mpc current --wait); do
+	parse_mpc <<< "$output"
+	if ! [[ $quiet ]]; then print_lyrics; fi
+	if [[ $notify ]]; then
+		notify-send -i audio-x-generic "$title" "$artist - $album"
+	fi
+	if [[ $image ]]; then link_img; fi
+done

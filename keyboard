@@ -1,0 +1,10 @@
+#!/bin/sh
+keyboard=1:1:AT_Translated_Set_2_keyboard
+
+if swaymsg -t get_inputs | grep -A7 "$keyboard" | grep -q enabled; then
+	action=disabled
+else
+	action=enabled
+fi
+
+swaymsg "input '$keyboard' events $action"

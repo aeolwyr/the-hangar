@@ -1,0 +1,38 @@
+#!/bin/sh
+backup_file=$HOME/.cache/last-backup
+
+not_yet() {
+	next=$(date -d "$1 + 4 days" '+%s')
+	now=$(date '+%s')
+	return $(( next < now ))
+}
+
+read_all() {
+	while read -r date name; do
+		if not_yet "$date"; then continue; fi
+		if [ "$1" = "-m" ]; then
+			echo "$name: The last backup was at $(date -d "$date")"
+		else
+			notify-send "$name" \
+				"The last backup was at\\n$(date -d "$date")"
+		fi
+	done < "$backup_file"
+}
+
+read_single() {
+	date=$(sort "$backup_file" | head -c22)
+	if not_yet "$date"; then return; fi
+	date -d "$date" +'%Y-%m-%d'
+	read_all
+}
+
+reset() {
+	if [ -z "$1" ]; then exit 1; fi
+	sed -i "s/.* $1/$(date --iso-8601=minutes) $1/" "$backup_file"
+}
+
+case $1 in
+	-s) read_single;;
+	-r) reset "$2";;
+	*) read_all "$1";;
+esac

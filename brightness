@@ -1,0 +1,24 @@
+#!/bin/sh
+cd /sys/class/backlight/intel_backlight || exit 1
+
+exec 2> /dev/null
+
+increase() {
+	max=$(cat max_brightness); cur=$(cat brightness)
+	echo $(((20 * (cur + 1) / max + 1) * max / 20)) >> brightness
+}
+
+decrease() {
+	max=$(cat max_brightness); cur=$(cat brightness)
+	echo $(((20 * (cur - 1) / max) * max / 20)) >> brightness
+}
+
+update() { pkill -SIGRTMIN+11 i3blocks; exit 0; }
+
+if [ "$1" = "inc" ]; then increase; update; fi
+if [ "$1" = "dec" ]; then decrease; update; fi
+if [ "$BLOCK_BUTTON" = 4 ]; then increase; fi
+if [ "$BLOCK_BUTTON" = 5 ]; then decrease; fi
+
+printf '%4d' "$(cat brightness)"
+exit 0

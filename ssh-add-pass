@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [[ -t 1 ]]
+then
+	SSH_ASKPASS=$0 ssh-add </dev/null &>/dev/null
+else
+	pass show ssh
+fi

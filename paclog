@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# TODO: bash completion
+# TODO: verbose flag
+# TODO: fail gracefully
+# TODO: multiple packages
+
+import json
+import urllib.request
+import xml.etree.ElementTree
+import argparse
+import datetime
+
+parser = argparse.ArgumentParser()
+parser.add_argument('package')
+parser.add_argument('-a', '--all', action='store_true')
+parser.add_argument('-i', '--index', type=int, default='0')
+parser.add_argument('-p', '--patch', action='store_true')
+args = parser.parse_args()
+
+package = args.package
+
+def pkg_details(package):
+    url = 'https://www.archlinux.org/packages/search/json/?name=' + package
+    data = urllib.request.urlopen(url).read().decode('utf-8')
+    result = json.loads(data)['results'][0]
+    if result['repo'] in ('community', 'multilib'):
+        return 'community', result['pkgbase']
+    else:
+        return 'packages', result['pkgbase']
+
+def get_age(dt):
+    upt = datetime.datetime.strptime(dt, '%Y-%m-%dT%H:%M:%S+00:00').replace(tzinfo=datetime.timezone.utc)
+    delta = datetime.datetime.now(datetime.timezone.utc) - upt
+    if delta.days == 0 and delta.seconds < 7200:
+        return '{:.0f} min.'.format(delta.seconds / 60)
+    elif delta.days < 2:
+        return '{:.0f} hours'.format(delta.days * 24 + delta.seconds / 3600)
+    elif delta.days < 14:
+        return '{:d} days'.format(delta.days)
+    else:
+        return dt[:10]
+
+repo, pkgbase = pkg_details(package)
+
+url = 'https://git.archlinux.org/svntogit/' + repo + '.git/atom/trunk?h=packages/' + pkgbase
+data = urllib.request.urlopen(url).read().decode('utf-8')
+et = xml.etree.ElementTree.fromstring(data)
+
+ns = { 'a': 'http://www.w3.org/2005/Atom' }
+entries = et.findall('a:entry', ns)
+log = []
+for entry in entries:
+    commit = {}
+    commit['title'] = entry.findtext('a:title', '', ns)
+    commit['updated'] = entry.findtext('a:updated', '', ns)
+    commit['id'] = entry.findtext('a:id', '', ns)
+    commit['content'] = entry.findtext('a:content', '', ns)
+    log.append(commit)
+
+if args.all:
+    print("    Age          Commit message")
+    for index, commit in enumerate(log):
+        print("{:2}  {:10}   {}".format(index, get_age(commit['updated']), commit['title']))
+elif args.patch:
+    index = args.index
+    commit = log[index]['id']
+    url = 'https://git.archlinux.org/svntogit/' + repo + '.git/patch/?id=' + commit
+    print(urllib.request.urlopen(url).read().decode('utf-8'))
+else:
+    index = args.index
+    print(log[index]['title'].replace('FS#', 'https://bugs.archlinux.org/task/'))
+    print(log[index]['content'].rsplit('\n', 2)[0].strip().replace('FS#', 'https://bugs.archlinux.org/task/'))

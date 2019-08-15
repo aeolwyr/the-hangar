@@ -1,0 +1,46 @@
+#!/bin/sh
+
+increase() {
+	if [ "$volume" -ge 150 ]; then return; fi
+	pactl set-sink-volume @DEFAULT_SINK@ $((( (volume / 5) + 1) * 5))%
+}
+
+decrease() {
+	pactl set-sink-volume @DEFAULT_SINK@ -$(((volume - 1) % 5 + 1))%
+}
+
+switch() {
+	if ! echo "$sinks" | grep -q HDMI; then
+		pactl set-card-profile 0 \
+			output:hdmi-stereo+input:analog-stereo
+	else
+		pactl set-card-profile 0 \
+			output:analog-stereo+input:analog-stereo
+	fi
+}
+
+mute() { pactl set-sink-mute @DEFAULT_SINK@ toggle; }
+update() { pkill -SIGRTMIN+10 i3blocks; exit 0; }
+
+refresh() {
+	sinks="$(pactl list sinks)"
+	volume="$(echo "$sinks" | grep -o '[ 0-9][ 0-9][0-9]%' | head -c3)"
+}
+
+refresh
+
+if [ "$1" = "inc" ]; then increase; update; fi
+if [ "$1" = "dec" ]; then decrease; update; fi
+if [ "$1" = "mute" ]; then mute; update; fi
+if [ "$1" = "switch" ]; then switch; update; fi
+if [ "$BLOCK_BUTTON" = 1 ]; then mute; refresh; fi
+if [ "$BLOCK_BUTTON" = 2 ]; then switch; refresh; fi
+if [ "$BLOCK_BUTTON" = 4 ]; then increase; refresh; fi
+if [ "$BLOCK_BUTTON" = 5 ]; then decrease; refresh; fi
+
+printf "%s" "${volume}"
+echo "${sinks}%" \
+	| grep -o -e 'Mute: yes' -e 'Surround' -e 'HDMI ' -e '%$' | head -c1
+echo
+
+exit 0

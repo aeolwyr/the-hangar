@@ -1,0 +1,19 @@
+#!/bin/sh
+readonly WD=$(mktemp --directory)
+trap 'rm -rv "$WD"' EXIT
+cd "$WD" || exit
+curl 'https://git.archlinux.org/svntogit/community.git/plain/trunk/PKGBUILD?h=packages/wine' \
+	| sed '
+s/pkgname=wine/pkgname=wine-meta/
+s/source=/source_ignored=/
+s/sha512sums=/sha512sums_ignored=/
+s/validpgpkeys=/validpgpkeys_ignored=/
+s/makedepends=/makedepends_ignored=/g
+s/install=/install_ignored=/
+s/prepare/prepare_ignored/
+s/build/build_ignored/
+s/package/package_ignored/
+s/^depends=(/depends=(winetricks wine-mono wine_gecko lib32-gnutls lib32-libldap lib32-sqlite lib32-vulkan-icd-loader lib32-libgpg-error/
+' > PKGBUILD
+echo 'provides=(wine)' >> PKGBUILD
+makepkg --clean --install --syncdeps --rmdeps

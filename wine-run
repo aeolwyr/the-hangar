@@ -1,0 +1,12 @@
+#!/bin/bash
+exec bwrap \
+	--dev-bind / / \
+	--tmpfs /mnt \
+	--bind "$PWD" ~ \
+	--bind ~/.Xauthority{,} \
+	--bind ~/.cache/mozilla{,} \
+	--bind ~/.mozilla{,} \
+	--setenv DXVK_HUD fps \
+	--setenv WINEDEBUG -all \
+	wine "$@" \
+	&> /dev/null

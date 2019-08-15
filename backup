@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+
+name=$1
+
+cd ~/.config/backup
+source_dir=$(grep -Po 'source: \K.+' "$name")
+repo_dir=$(grep -Po 'repo: \K.+' "$name")
+patterns_file=$(realpath "$(grep -Po 'patterns: \K.+' "$name")")
+
+cd "$source_dir"
+
+df -h "$repo_dir"
+
+printf 'Will start the backup now. Press ^C to exit. '
+read -r
+
+borg create --verbose --filter AME --list --stats --progress --show-rc \
+	--exclude-caches --patterns-from "$patterns_file" \
+	"$repo_dir::$name-{now}" .
+
+borg check --verbose --verify-data --last 1 --progress --show-rc "$repo_dir"
+
+#borg prune --list --show-rc --keep-weekly 4
+
+backup-reminder -r "$name"
+
+#mkmasfimage -s .srt=1M "$source_dir" ~/Documents/backup.img

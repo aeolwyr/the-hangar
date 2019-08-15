@@ -1,0 +1,13 @@
+#!/bin/sh
+readonly module="module-virtual-surround-sink"
+
+if ! pacmd list | grep -Fq $module ; then
+	echo turning on...
+	pacmd load-module $module \
+		sink_name=vsurround \
+		hrir="$HOME"/.config/pulse/hrir-1037.wav \
+		sink_properties=device.description=VirtualSurround
+else
+	echo turning off...
+	pacmd unload-module $module
+fi

@@ -1,0 +1,23 @@
+#!/bin/bash
+# https://unix.stackexchange.com/a/250792
+shopt -s extdebug
+
+preexec_invoke_exec() {
+	# do nothing if completing
+	[ -n "$COMP_LINE" ] && return
+
+	# don't cause a preexec for $PROMPT_COMMAND
+	[ "$BASH_COMMAND" = "$PROMPT_COMMAND" ] && return
+
+	this_command=$(HISTTIMEFORMAT='' history 1 \
+		| sed -e "s/^[ ]*[0-9]*[ ]*//")
+
+	# so that you don't get locked accidentally
+	if [ "shopt -u extdebug" == "$this_command" ]; then return 0; fi
+
+	# run under the wm
+	exec swaymsg -t command exec "$this_command"
+}
+
+export PS1=' '
+trap 'preexec_invoke_exec' DEBUG
